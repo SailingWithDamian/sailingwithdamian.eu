@@ -1,0 +1,42 @@
+name: Publish
+on: { push: { branches: [ main ] } }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure git
+        run: |
+          git config --global "credential.https://lfs-shimmy.infrabits.nl.helper" "! f() { echo username=${{ secrets.GIT_LFS_USERNAME }}; echo password=${{ secrets.GIT_LFS_PASSWORD }}; };f"
+
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          path: build/
+          ref: main
+
+      - name: Fetch lfs objects
+        run: git -C build/ lfs pull
+
+      - name: Clean build
+        run: |
+          rm -rf .git/ .github/ .gitattributes .lfsconfig CNAME
+
+      - name: Upload build
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      deployments: write
+      pages: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
